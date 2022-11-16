@@ -1,5 +1,5 @@
 # JobTracker
-## What it is:
+## What we're building
 Web app for tracking job applications that also sends data to Mixpanel for analytics.
 
 Users are able to sign up for an account using Google Oauth and providing their Mixpanel API info.
