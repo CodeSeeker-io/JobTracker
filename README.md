@@ -6,7 +6,7 @@ Users are able to sign up for an account using Google Oauth and providing their 
 The app can be used to track and update the status of job applications. Data entered into the web app will automatically be sent to the user's Mixpanel account.
 
 ## Contributions
-If you would like to contribute, it's easy to get started. In general, we adhere to the following Git workflow.
+If you would like to contribute, it's easy to get started. In general, we adhere to the following Git workflow:
 
 1. Clone the project to your own machine
 2. Create your own feature branch
