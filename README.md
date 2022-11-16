@@ -14,4 +14,4 @@ If you would like to contribute, it's easy to get started. In general, we adhere
 4. Push your work back up to your feature branch on GitHub
 5. Submit a Pull request so that we can review your changes
 
-NOTE: Be sure to merge the latest changes from the "dev" branch before making a pull request!
+NOTE: Be sure to merge the latest changes from the *dev* branch before making a pull request!
