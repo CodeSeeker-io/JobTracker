@@ -1,0 +1,20 @@
+{
+  "name": "jobtracker",
+  "version": "1.0.0",
+  "description": "Web app for tracking job applications that also sends data to Mixpanel for analytics",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodeSeeker-io/JobTracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CodeSeeker-io/JobTracker/issues"
+  },
+  "homepage": "https://github.com/CodeSeeker-io/JobTracker#readme"
+}
