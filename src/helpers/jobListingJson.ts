@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * All required fields for a job listing.
  */
-const requiredFields = [
+export const requiredFields = [
   "company",
   "jobTitle",
   "location",
@@ -13,7 +13,7 @@ const requiredFields = [
   "dateSubmitted",
   "dateLastModified",
 ] as const satisfies readonly string[];
-type RequiredField = typeof requiredFields[number];
+export type RequiredField = typeof requiredFields[number];
 
 /**
  * Validator for any Google Sheets cells values that are JSON-serializable.
@@ -76,8 +76,8 @@ const jobListingValidator = z.object({
   url: z.union([z.literal(""), z.string().url()]),
 });
 
-type JobListing = z.infer<typeof jobListingValidator>;
-type PartialJobListing = Partial<JobListing> & Pick<JobListing, "extraFields">;
+/** Represents a single job listing added by the user. */
+export type JobListing = z.infer<typeof jobListingValidator>;
 
 /**
  * Takes a set of validated field names and data rows and restructures them into
@@ -92,6 +92,9 @@ const recordsTransformer = apiDataSchema.transform((apiData) => {
   );
 
   return apiData.rows.map((row) => {
+    type PartialJobListing = Partial<JobListing> &
+      Pick<JobListing, "extraFields">;
+
     const result: PartialJobListing = { extraFields: {} };
     for (const [index, cellValue] of row.entries()) {
       const recordKey = fieldIndices.get(index) ?? "";
@@ -114,7 +117,7 @@ const recordsTransformer = apiDataSchema.transform((apiData) => {
  *
  * Will always return an array, even if nothing could be parsed.
  */
-function parseJobListings(apiData: unknown): JobListing[] {
+export function parseJobListings(apiData: unknown): JobListing[] {
   const recordsResult = recordsTransformer.safeParse(apiData);
   if (!recordsResult.success) {
     return [];
@@ -125,6 +128,3 @@ function parseJobListings(apiData: unknown): JobListing[] {
     return listingResult.success ? [listingResult.data] : [];
   });
 }
-
-export { parseJobListings, requiredFields };
-export type { JobListing, RequiredField };
