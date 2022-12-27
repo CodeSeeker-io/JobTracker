@@ -18,6 +18,7 @@
 
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
 
     "paths": {
       "@/components/*": ["./src/components/*"],
