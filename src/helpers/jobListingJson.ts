@@ -116,19 +116,19 @@ const recordsTransformer = apiDataValidator
     );
 
     return apiData.rows.map((row) => {
-      const result: PartialJobListing = { extraFields: {} };
+      const record: PartialJobListing = { extraFields: {} };
       for (const [index, cellValue] of row.entries()) {
         const recordKey = fieldIndices.get(index) ?? "";
 
         if (isRequiredField(recordKey)) {
           if (typeof cellValue !== "string") continue;
-          result[recordKey] = cellValue;
+          record[recordKey] = cellValue;
         } else {
-          result.extraFields[recordKey] = cellValue;
+          record.extraFields[recordKey] = cellValue;
         }
       }
 
-      return result;
+      return record;
     });
   })
   .transform((records) => {
@@ -139,10 +139,10 @@ const recordsTransformer = apiDataValidator
   });
 
 /** Fully validates and transforms data from the Google Sheets API. */
-const parseApiData = z.pipeline(
+const jobListingDataPipeline = z.pipeline(
   initialResponseProcessor,
   recordsTransformer
-).safeParse;
+);
 
 /**
  * Takes any kind of Google Sheets API data (fields and rows), and parses out as
@@ -151,6 +151,6 @@ const parseApiData = z.pipeline(
  * Will always return an array, even if nothing could be parsed.
  */
 export function parseJobListings(apiData: unknown): JobListing[] {
-  const parseResult = parseApiData(apiData);
+  const parseResult = jobListingDataPipeline.safeParse(apiData);
   return parseResult.success ? parseResult.data : [];
 }
