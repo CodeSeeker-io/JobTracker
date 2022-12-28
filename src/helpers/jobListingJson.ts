@@ -13,6 +13,8 @@ export const requiredFields = [
   "dateSubmitted",
   "dateLastModified",
 ] as const satisfies readonly string[];
+
+/** An individual required field in a spreadsheet's fields. */
 export type RequiredField = typeof requiredFields[number];
 
 /**
@@ -23,31 +25,30 @@ const jsonSheetCellValidator = z.union([z.string(), z.number(), z.boolean()]);
 /**
  * Validator for a row of cell values from a Google Sheets spreadsheet.
  */
+// nonempty and min seem redundant, but it does change the resulting value's
+// type - particularly what can safely be destructured from it
 const jsonSheetRowValidator = jsonSheetCellValidator
   .array()
   .nonempty()
   .min(requiredFields.length);
 
 /**
- * Validator for any kind of data that comes from the Google Sheets API that
- * at least vaguely meets the loose requirements for a job search database.
+ * Takes the initial API response, and:
+ * 1. Does basic validation on the structure of the data
+ * 2. Strips the data of extra properties
+ * 3. Splits the values into separate fields and data rows
  */
-const apiDataSchema = z.object({
-  fields: z
-    .string()
-    .array()
-    .min(requiredFields.length)
-    .refine((apiFields) => apiFields.length === new Set(apiFields).size, {
-      message: "Duplicate column names found in fields row.",
-    })
-    .refine(
-      (apiFields) => requiredFields.every((rf) => apiFields.includes(rf)),
-      { message: "Not all required fields present in fields property." }
-    ),
-  rows: z.array(jsonSheetRowValidator),
-});
+const initialResponseProcessor = z
+  .object({
+    majorDimension: z.literal("ROWS"),
+    values: z.array(jsonSheetRowValidator).nonempty().min(2),
+  })
+  .transform((data) => {
+    const [fieldsRow, ...dataRows] = data.values;
+    return { fields: fieldsRow, rows: dataRows };
+  });
 
-/** Used with isRequiredField */
+/** Used with isRequiredField helper function */
 const requiredFieldsSet = new Set(requiredFields);
 
 /** Provides type narrowing info about whether a value is a RequiredField. */
@@ -76,8 +77,30 @@ const jobListingValidator = z.object({
   url: z.union([z.literal(""), z.string().url()]),
 });
 
+/**
+ * Validator for API data that has been cleaned and split into separate fields
+ * and data rows.
+ */
+const apiDataValidator = z.object({
+  fields: z
+    .string()
+    .array()
+    .min(requiredFields.length)
+    .refine((apiFields) => apiFields.length === new Set(apiFields).size, {
+      message: "Duplicate column names found in fields row.",
+    })
+    .refine(
+      (apiFields) => requiredFields.every((rf) => apiFields.includes(rf)),
+      { message: "Not all required fields present in fields property." }
+    ),
+  rows: z.array(jsonSheetRowValidator),
+});
+
 /** Represents a single job listing added by the user. */
 export type JobListing = z.infer<typeof jobListingValidator>;
+
+/** A JobListing that has all properties set to optional, except extraFields. */
+type PartialJobListing = Partial<JobListing> & Pick<JobListing, "extraFields">;
 
 /**
  * Takes a set of validated field names and data rows and restructures them into
@@ -86,30 +109,40 @@ export type JobListing = z.infer<typeof jobListingValidator>;
  * Objects are not validated for the proper structure; this needs to happen in
  * a separate validation step.
  */
-const recordsTransformer = apiDataSchema.transform((apiData) => {
-  const fieldIndices = new Map(
-    apiData.fields.map((field, index) => [index, field])
-  );
+const recordsTransformer = apiDataValidator
+  .transform((apiData) => {
+    const fieldIndices = new Map(
+      apiData.fields.map((field, index) => [index, field])
+    );
 
-  return apiData.rows.map((row) => {
-    type PartialJobListing = Partial<JobListing> &
-      Pick<JobListing, "extraFields">;
+    return apiData.rows.map((row) => {
+      const result: PartialJobListing = { extraFields: {} };
+      for (const [index, cellValue] of row.entries()) {
+        const recordKey = fieldIndices.get(index) ?? "";
 
-    const result: PartialJobListing = { extraFields: {} };
-    for (const [index, cellValue] of row.entries()) {
-      const recordKey = fieldIndices.get(index) ?? "";
-
-      if (isRequiredField(recordKey)) {
-        if (typeof cellValue !== "string") continue;
-        result[recordKey] = cellValue;
-      } else {
-        result.extraFields[recordKey] = cellValue;
+        if (isRequiredField(recordKey)) {
+          if (typeof cellValue !== "string") continue;
+          result[recordKey] = cellValue;
+        } else {
+          result.extraFields[recordKey] = cellValue;
+        }
       }
-    }
 
-    return result;
+      return result;
+    });
+  })
+  .transform((records) => {
+    return records.flatMap((record) => {
+      const listingResult = jobListingValidator.safeParse(record);
+      return listingResult.success ? [listingResult.data] : [];
+    });
   });
-});
+
+/** Fully validates and transforms data from the Google Sheets API. */
+const parseApiData = z.pipeline(
+  initialResponseProcessor,
+  recordsTransformer
+).safeParse;
 
 /**
  * Takes any kind of Google Sheets API data (fields and rows), and parses out as
@@ -118,13 +151,6 @@ const recordsTransformer = apiDataSchema.transform((apiData) => {
  * Will always return an array, even if nothing could be parsed.
  */
 export function parseJobListings(apiData: unknown): JobListing[] {
-  const recordsResult = recordsTransformer.safeParse(apiData);
-  if (!recordsResult.success) {
-    return [];
-  }
-
-  return recordsResult.data.flatMap((record) => {
-    const listingResult = jobListingValidator.safeParse(record);
-    return listingResult.success ? [listingResult.data] : [];
-  });
+  const parseResult = parseApiData(apiData);
+  return parseResult.success ? parseResult.data : [];
 }
