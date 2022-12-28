@@ -22,8 +22,11 @@
 
     "paths": {
       "@/components/*": ["./src/components/*"],
+      "@/constants/*": ["./src/constants/*"],
       "@/helpers/*": ["./src/helpers/*"],
-      "@/sharedTypes/*": ["./src/sharedTypes/*"]
+      "@/hooks/*": ["./src/hooks/*"],
+      "@/types/*": ["./src/types/*"],
+      "@/utils/*": ["./src/utils/*"]
     }
   },
 
